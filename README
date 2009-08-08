@@ -1,0 +1,136 @@
+ABOUT
+ColdCourse uses Rails style URL routing to convert a "pretty" URL to the event or fuseaction 
+based URLs used by most Coldfusion frameworks. Instead of going to a URL such as
+http://localhost/index.cfm?fuseaction=home.about
+You can have the same resource available at
+http://localhost/home/about
+
+All examples listed here in their minimized form (http://localhost/home/about) are also available at a 
+short form (http://localhost/index.cfm/home/about) by customizing the setBaseURL() setting in your config file.
+
+Additional parameters can be used which are then converted to URLs variables. For instance 
+you may want to access:
+http://localhost/user/about/BenForta
+Which would, by default, be the same as accessing
+http://localhost/index.cfm?fuseaction=user.about&id=BenForta.
+
+Another example may be a blog where you want to be able to view by date where you had a URL 
+such as: http://localhost/blog/2007/2
+Which you want to list all blog posts from February 2007. This would then route to something 
+similar to http://localhost/index.cfm?fuseaction=blog.list&year=2007&month=2
+
+Additionally, Coldcourse can handle keeping your URLs unique. Once installed you wouldn't 
+want to have 2 URLs available with the same content. Coldcourse handles making sure only 
+one such location for each URL exists.
+
+This is heavily based on the amazing routes system written by Rob Cameron & Per Djurner 
+for Coldfusion on Wheels (http://www.cfwheels.com/) which is responsible a 
+huge majority of the codebase.
+
+
+REQUIREMENTS
+In order to use minimized URLs (those without index.cfm in the URL) you must be able to run 
+either .htaccess files, which is enabled with apache, or be running IIS and be able to 
+install an Isapi filter for URL rewriting. Most windows shared hosts are not able to run the 
+minimized version.
+
+Any ColdFusion server that runs ColdCourse should be able to run the short form if you don't mind
+your URLs looking like http://localhost/index.cfm/controller/action.
+
+Coldcourse has not been tested on many CF servers or alternate OS's, but it does work on IIS/apache and
+linux/windows with ColdFusion 7 and 8. Here are the basics of what would be needed for other CF servers:
+cgi.path_info and cgi.script_name variables.
+CFCs
+application scope (although it could be configured to work without it).
+Application.cfc/Application.cfm (out of the box this is where the application scope is set, although that could
+	easily be changed).
+
+INSTALLATION
+Using ColdCourse involves code integration and possibly server modifications (if you're running 
+IIS). We'll start with the code integration because you wouldn't be able to see if everything 
+is working unless you have something to test on.
+
+Code Integration
+Open up your index.cfm file and add the following line right before your framework is included.
+	<cfset application.coldcourse.dispatch(cgi.path_info, cgi.script_name) />
+Drop coldcourse.config.cfm in your /config directory, or anywhere you like.
+Drop Coldcourse.cfc in your /model directory or anywhere you like.
+Open up your Application.cfc and set it up to create the coldcourse variable. If you
+	put your ColdCourse file in the /model directory and the config in /config this should work.
+	There is an example of this included with the framework. There is no flag in the config file
+	for development mode/production mode, so you'll have to change where coldcourse is loaded within
+	your application.cfc file. For me I just leave it in onRequestStart locally and onApplicationStart 
+	for production.
+	<cfset application.coldcourse = createObject("component","model.Coldcourse").init("/config/coldcourse.config.cfm")>
+	
+Configuration setup
+Open up coldcourse.config.cfm and configure it for your framework. It should be well documented
+enough to make sense.
+
+Try it out
+Make sure your site still works with Coldcourse enabled and Unique URLs set to off (false). If you're
+running Apache you can delete the IsapiRewrite4.ini file and turn everything on and experiment - 
+installation is done!
+
+Additional IIS configuration.
+If you're running IIS you can delete the .htaccess file, it won't be neeed. 
+
+URL Rewriting for IIS works by adding a ISAPI filter for the site you want to use it. Adding this is 
+actually really easy, but does require that you can do the same on your production site which shared
+webhosts don't usually allow. Be aware of that! Again this is only if you want minimalized URLs (those
+without index.cfm in the URL).
+
+There are two main choices for rewrite filters I've tried/read about. The first is IIRF which is 
+completely free, and I haven't had much trouble installing it. It's available at 
+http://cheeso.members.winisp.net/IIRF.aspx . As far as installation for it goes, you can follow the
+directions on their site for setting it up in IIS, adding the filter and pointing it to the IIRF files
+downloaded. You'll also need to add the included file /coldcourse/IsapiRewrite4.ini in the same directory 
+as the IIRF dlls (you can overwrite whatever comes with IIRF. I think it says at some point in the 
+installation you don't need to restart IIS for changes to be complete, but I ended up needing to. 
+
+The other popular rewrite engine is Isapi Rewrite (http://www.isapirewrite.com/) which I have not yet 
+tested. There's a good post on the subject over at 
+http://www.bpurcell.org/blog/index.cfm?mode=entry&entry=1070 which looks similar enough in syntax.
+
+After that's complete you should be able to view your site with pretty URLs.
+
+MODES
+There is a production mode and a development mode to coldcourse, where production mode caches the cfc
+and the configuration file, which can be setup by creating the coldcourse object in onApplicationStart
+in Application.cfc.
+
+
+GOTCHAS
+If you have an existing site and you're wanting to try using Coldcourse, it may just work without having
+to edit any of your code, even with UniqueURLs turned on!  That's the goal at least, although it
+probably won't be that simple. Here's why:
+
+Relative paths suck. Chances are you're calling page in the form "index.cfm?event=..." left and right in
+your code. We can rewrite that once, but after that the resulting URL might be more like 
+"/home/about/index.cfm?event=..." which is more of a pain to work with. 
+
+The easy solution involves adding a plugin/onrequeststart method that will rewrite the self/myself framework
+variables to be an empty string, and then change your XFAs from "home.about" to "/home/about/". 
+
+There are also layout issues caused by this change in structure. If your images, css and javascript files are 
+referenced with "scripts/something.js" in your header, that won't work when you're in the "/home/about"
+folder. The easy solution for this is to prefix all your calls with a "/", which will work regardless of the
+URL structure.
+
+You really should rewrite your URLs that are submitting to the framework URLs, but until then you can at least
+do some testing with Coldcourse. URL variables are passed on after a redirect, as are form variables through a 
+URL. This is a bit of a hack, and should really be avoided. The end result is that the form scope on your 
+resulting page won't be what you expect. Since pretty much all frameworks just combine url and form this may
+work, but it's still not a good idea.
+
+
+
+
+CREDITS
+This is basically a port of the amazing routing system used in Coldfustion on Wheels by Rob Cameron & 
+Per Djurner (http://www.cfwheels.com/). Major props to them for making something robust enough to be
+applied to all major frameworks.
+
+For more information, check out http://coldcourse.riaforge.org/
+
+- Adam Fortuna
