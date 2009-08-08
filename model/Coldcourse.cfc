@@ -137,7 +137,7 @@
 			<cfset vari = Mid(requestString, (varMatch.pos[1]+1), (varMatch.len[1]-2)) />
 			<cfset vali = Mid(requestString, (valMatch.pos[1]+1), (valMatch.len[1]-1)) />
 			<cfset url[vari] = vali />
-			<cfset requestString = Mid(requestString, 1, (var_match.pos[1]-1)) />
+			<cfset requestString = Mid(requestString, 1, (valMatch.pos[1]-1)) />
 		</cfif>
 		
 		<!--- Remove the leading slash in the request (if there was something more than just a slash to begin with) to match our routes --->
